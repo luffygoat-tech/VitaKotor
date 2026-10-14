@@ -950,6 +950,11 @@ static const so_default_dynlib sdl_dynlib[] = {
   // file IO (translate Android paths)
   { "SDL_RWFromFile",              (uintptr_t)&SDL_RWFromFile_hook },
   { "SDL_RWclose",                 (uintptr_t)&SDL_RWclose },
+  { "SDL_RWread",                  (uintptr_t)&SDL_RWread },
+  { "SDL_RWwrite",                 (uintptr_t)&SDL_RWwrite },
+  { "SDL_RWseek",                  (uintptr_t)&SDL_RWseek },
+  { "SDL_RWtell",                  (uintptr_t)&SDL_RWtell },
+  { "SDL_RWsize",                  (uintptr_t)&SDL_RWsize },
   // RWops alloc/free: ObbFile::RWFromFile builds a custom RWops (its own
   // read/seek/close callbacks into the OBB) via SDL_AllocRW; map straight to
   // native SDL2. Missing -> unrelocated GOT slot -> PREFETCH_ABORT on blx.
