@@ -9,6 +9,7 @@
 
 #include <vitasdk.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -96,6 +97,18 @@ static char *strcpy_chk_impl(char *dst, const char *src, size_t dst_size) {
     fatal_error("Android __strcpy_chk overflow (need %u bytes, have %u)",
                 (unsigned)src_size, (unsigned)dst_size);
   return strcpy(dst, src);
+}
+
+// Bionic's fortified vsprintf import carries the compiler-known destination
+// size. Use bounded formatting and preserve the overflow check on Vita.
+static int vsprintf_chk_impl(char *dst, int flags, size_t dst_size,
+                             const char *fmt, va_list ap) {
+  (void)flags;
+  int result = vsnprintf(dst, dst_size, fmt, ap);
+  if (result >= 0 && (size_t)result >= dst_size)
+    fatal_error("Android __vsprintf_chk overflow (need %u bytes, have %u)",
+                (unsigned)result + 1u, (unsigned)dst_size);
+  return result;
 }
 
 // ---- bionic static-initializer bridge (pthread ABI) -----------------------
@@ -876,6 +889,7 @@ so_default_dynlib default_dynlib[] = {
   { "memcpy", (uintptr_t)&sceClibMemcpy }, { "memmove", (uintptr_t)&sceClibMemmove },
   { "memset", (uintptr_t)&memset }, { "memcmp", (uintptr_t)&memcmp }, { "memchr", (uintptr_t)&memchr },
   { "__strcpy_chk", (uintptr_t)&strcpy_chk_impl },
+  { "__vsprintf_chk", (uintptr_t)&vsprintf_chk_impl },
   { "strcpy", (uintptr_t)&strcpy }, { "strncpy", (uintptr_t)&strncpy }, { "strcat", (uintptr_t)&strcat }, { "strncat", (uintptr_t)&strncat },
   { "strcmp", (uintptr_t)&strcmp }, { "strncmp", (uintptr_t)&strncmp }, { "strlen", (uintptr_t)&strlen },
   { "strchr", (uintptr_t)&strchr }, { "strrchr", (uintptr_t)&strrchr }, { "strstr", (uintptr_t)&strstr },
