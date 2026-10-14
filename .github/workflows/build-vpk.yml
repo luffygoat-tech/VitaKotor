@@ -42,9 +42,9 @@ jobs:
           unzip -q ../base/KOTOR.vpk
           cp ../build/eboot.bin eboot.bin
           rm -f ../KOTOR-strcpy-chk.vpk
-          zip -q -r -X ../KOTOR-fixingIt.vpk .
+          zip -q -r -X ../KOTOR-strcpy-chk.vpk .
           cd ..
-          unzip -l KOTOR-fixingIt.vpk | tail -n 20
+          unzip -l KOTOR-strcpy-chk.vpk | tail -n 20
           short=$(git rev-parse --short HEAD)
           echo "SHORT=$short" >> "$GITHUB_ENV"
 
@@ -52,6 +52,6 @@ jobs:
         with:
           name: KOTOR-strcpy-chk-${{ env.SHORT }}
           path: |
-            KOTOR-fixingIt.vpk
+            KOTOR-strcpy-chk.vpk
             build/eboot.bin
 
