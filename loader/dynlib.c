@@ -127,6 +127,16 @@ static char *strchr_chk_impl(const char *s, int c, size_t s_size) {
   return NULL;
 }
 
+// Bionic's fortified strlen import supplies the compiler-known object bound.
+// Read no farther than that bound and fail clearly if the input is unterminated.
+static size_t strlen_chk_impl(const char *s, size_t s_size) {
+  for (size_t i = 0; i < s_size; i++)
+    if (s[i] == '\0') return i;
+  fatal_error("Android __strlen_chk string exceeds %u-byte object bound",
+              (unsigned)s_size);
+  return 0;
+}
+
 // ---- bionic static-initializer bridge (pthread ABI) -----------------------
 // Both ABIs store a pointer-sized handle, but the STATIC initializer differs:
 //   bionic  PTHREAD_MUTEX_INITIALIZER / COND_INITIALIZER == 0
@@ -906,6 +916,7 @@ so_default_dynlib default_dynlib[] = {
   { "memset", (uintptr_t)&memset }, { "memcmp", (uintptr_t)&memcmp }, { "memchr", (uintptr_t)&memchr },
   { "__strcpy_chk", (uintptr_t)&strcpy_chk_impl },
   { "__strchr_chk", (uintptr_t)&strchr_chk_impl },
+  { "__strlen_chk", (uintptr_t)&strlen_chk_impl },
   { "__vsprintf_chk", (uintptr_t)&vsprintf_chk_impl },
   { "strcpy", (uintptr_t)&strcpy }, { "strncpy", (uintptr_t)&strncpy }, { "strcat", (uintptr_t)&strcat }, { "strncat", (uintptr_t)&strncat },
   { "strcmp", (uintptr_t)&strcmp }, { "strncmp", (uintptr_t)&strncmp }, { "strlen", (uintptr_t)&strlen },
