@@ -88,6 +88,16 @@ static int __android_log_write_impl(int prio, const char *tag, const char *text)
   return 0;
 }
 
+/* Bionic's fortified strcpy import is used by the purchased Android build.
+ * Preserve its destination-size check instead of aliasing it to plain strcpy. */
+static char *strcpy_chk_impl(char *dst, const char *src, size_t dst_size) {
+  size_t src_size = strlen(src) + 1;
+  if (src_size > dst_size)
+    fatal_error("Android __strcpy_chk overflow (need %u bytes, have %u)",
+                (unsigned)src_size, (unsigned)dst_size);
+  return strcpy(dst, src);
+}
+
 // ---- bionic static-initializer bridge (pthread ABI) -----------------------
 // Both ABIs store a pointer-sized handle, but the STATIC initializer differs:
 //   bionic  PTHREAD_MUTEX_INITIALIZER / COND_INITIALIZER == 0
@@ -865,6 +875,7 @@ so_default_dynlib default_dynlib[] = {
   // ============ (a) libc: string.h ============
   { "memcpy", (uintptr_t)&sceClibMemcpy }, { "memmove", (uintptr_t)&sceClibMemmove },
   { "memset", (uintptr_t)&memset }, { "memcmp", (uintptr_t)&memcmp }, { "memchr", (uintptr_t)&memchr },
+  { "__strcpy_chk", (uintptr_t)&strcpy_chk_impl },
   { "strcpy", (uintptr_t)&strcpy }, { "strncpy", (uintptr_t)&strncpy }, { "strcat", (uintptr_t)&strcat }, { "strncat", (uintptr_t)&strncat },
   { "strcmp", (uintptr_t)&strcmp }, { "strncmp", (uintptr_t)&strncmp }, { "strlen", (uintptr_t)&strlen },
   { "strchr", (uintptr_t)&strchr }, { "strrchr", (uintptr_t)&strrchr }, { "strstr", (uintptr_t)&strstr },
