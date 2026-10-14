@@ -9,11 +9,11 @@ name: Build VPK
 
 on:
   push:
-    branches: [fixingIt]
+    branches: [fixingIt, fix-strcpy-chk]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-vpk-${{ github.ref }}
@@ -35,31 +35,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
+          tag=$(gh release view --repo "ScoobyDouche/VitaKotor" --json tagName -q .tagName)
           echo "base release: $tag"
-          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern KOTOR.vpk --dir base
+          gh release download "$tag" --repo "ScoobyDouche/VitaKotor" --pattern KOTOR.vpk --dir base
           mkdir vpk && cd vpk
           unzip -q ../base/KOTOR.vpk
           cp ../build/eboot.bin eboot.bin
-          rm -f ../KOTOR-fixingIt.vpk
+          rm -f ../KOTOR-strcpy-chk.vpk
           zip -q -r -X ../KOTOR-fixingIt.vpk .
           cd ..
           unzip -l KOTOR-fixingIt.vpk | tail -n 20
           short=$(git rev-parse --short HEAD)
           echo "SHORT=$short" >> "$GITHUB_ENV"
-          echo "BASE=$tag" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KOTOR-fixingIt-${{ env.SHORT }}
+          name: KOTOR-strcpy-chk-${{ env.SHORT }}
           path: |
             KOTOR-fixingIt.vpk
             build/eboot.bin
 
-      # Earlier versions of this workflow published a "fixingit-latest"
-      # pre-release; builds are artifacts only now. Remove it if it is still
-      # there (a no-op once it is gone).
-      - name: Remove the old fixingit-latest pre-release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release delete fixingit-latest --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
