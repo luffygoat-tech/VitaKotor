@@ -137,6 +137,16 @@ static size_t strlen_chk_impl(const char *s, size_t s_size) {
   return 0;
 }
 
+// Bionic's fortified memmove import includes the compiler-known destination
+// size. Keep the check and preserve memmove's overlap-safe behavior.
+static void *memmove_chk_impl(void *dst, const void *src, size_t len,
+                              size_t dst_size) {
+  if (len > dst_size)
+    fatal_error("Android __memmove_chk overflow (need %u bytes, have %u)",
+                (unsigned)len, (unsigned)dst_size);
+  return memmove(dst, src, len);
+}
+
 // ---- bionic static-initializer bridge (pthread ABI) -----------------------
 // Both ABIs store a pointer-sized handle, but the STATIC initializer differs:
 //   bionic  PTHREAD_MUTEX_INITIALIZER / COND_INITIALIZER == 0
@@ -917,6 +927,7 @@ so_default_dynlib default_dynlib[] = {
   { "__strcpy_chk", (uintptr_t)&strcpy_chk_impl },
   { "__strchr_chk", (uintptr_t)&strchr_chk_impl },
   { "__strlen_chk", (uintptr_t)&strlen_chk_impl },
+  { "__memmove_chk", (uintptr_t)&memmove_chk_impl },
   { "__vsprintf_chk", (uintptr_t)&vsprintf_chk_impl },
   { "strcpy", (uintptr_t)&strcpy }, { "strncpy", (uintptr_t)&strncpy }, { "strcat", (uintptr_t)&strcat }, { "strncat", (uintptr_t)&strncat },
   { "strcmp", (uintptr_t)&strcmp }, { "strncmp", (uintptr_t)&strncmp }, { "strlen", (uintptr_t)&strlen },
