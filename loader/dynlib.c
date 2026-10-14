@@ -147,6 +147,68 @@ static void *memmove_chk_impl(void *dst, const void *src, size_t len,
   return memmove(dst, src, len);
 }
 
+static void *memcpy_chk_impl(void *dst, const void *src, size_t len,
+                             size_t dst_size) {
+  if (len > dst_size)
+    fatal_error("Android __memcpy_chk overflow (need %u bytes, have %u)",
+                (unsigned)len, (unsigned)dst_size);
+  return memcpy(dst, src, len);
+}
+
+static void *memset_chk_impl(void *dst, int ch, size_t len,
+                             size_t dst_size) {
+  if (len > dst_size)
+    fatal_error("Android __memset_chk overflow (need %u bytes, have %u)",
+                (unsigned)len, (unsigned)dst_size);
+  return memset(dst, ch, len);
+}
+
+static char *strncpy_chk_impl(char *dst, const char *src, size_t n,
+                              size_t dst_size) {
+  if (n > dst_size)
+    fatal_error("Android __strncpy_chk overflow (need %u bytes, have %u)",
+                (unsigned)n, (unsigned)dst_size);
+  return strncpy(dst, src, n);
+}
+
+// The five-argument Bionic variant also knows the source object's bound.
+static char *strncpy_chk2_impl(char *dst, const char *src, size_t n,
+                               size_t dst_size, size_t src_size) {
+  if (n > dst_size)
+    fatal_error("Android __strncpy_chk2 destination overflow (need %u bytes, have %u)",
+                (unsigned)n, (unsigned)dst_size);
+  for (size_t i = 0; i < n; i++) {
+    if (i >= src_size)
+      fatal_error("Android __strncpy_chk2 source overread at %u of %u bytes",
+                  (unsigned)i, (unsigned)src_size);
+    char ch = src[i];
+    dst[i] = ch;
+    if (ch == '\0') {
+      memset(dst + i + 1, 0, n - i - 1);
+      return dst;
+    }
+  }
+  return dst;
+}
+
+static char *strcat_chk_impl(char *dst, const char *src, size_t dst_size) {
+  size_t dst_len = 0;
+  while (dst_len < dst_size && dst[dst_len] != '\0') dst_len++;
+  if (dst_len == dst_size)
+    fatal_error("Android __strcat_chk destination has no terminator in %u bytes",
+                (unsigned)dst_size);
+  size_t room = dst_size - dst_len;
+  for (size_t src_len = 0; src_len < room; src_len++) {
+    if (src[src_len] == '\0') {
+      memcpy(dst + dst_len, src, src_len + 1);
+      return dst;
+    }
+  }
+  fatal_error("Android __strcat_chk result exceeds %u-byte destination",
+              (unsigned)dst_size);
+  return dst;
+}
+
 // ---- bionic static-initializer bridge (pthread ABI) -----------------------
 // Both ABIs store a pointer-sized handle, but the STATIC initializer differs:
 //   bionic  PTHREAD_MUTEX_INITIALIZER / COND_INITIALIZER == 0
@@ -928,6 +990,11 @@ so_default_dynlib default_dynlib[] = {
   { "__strchr_chk", (uintptr_t)&strchr_chk_impl },
   { "__strlen_chk", (uintptr_t)&strlen_chk_impl },
   { "__memmove_chk", (uintptr_t)&memmove_chk_impl },
+  { "__memcpy_chk", (uintptr_t)&memcpy_chk_impl },
+  { "__memset_chk", (uintptr_t)&memset_chk_impl },
+  { "__strncpy_chk", (uintptr_t)&strncpy_chk_impl },
+  { "__strncpy_chk2", (uintptr_t)&strncpy_chk2_impl },
+  { "__strcat_chk", (uintptr_t)&strcat_chk_impl },
   { "__vsprintf_chk", (uintptr_t)&vsprintf_chk_impl },
   { "strcpy", (uintptr_t)&strcpy }, { "strncpy", (uintptr_t)&strncpy }, { "strcat", (uintptr_t)&strcat }, { "strncat", (uintptr_t)&strncat },
   { "strcmp", (uintptr_t)&strcmp }, { "strncmp", (uintptr_t)&strncmp }, { "strlen", (uintptr_t)&strlen },
