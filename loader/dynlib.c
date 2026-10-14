@@ -111,6 +111,18 @@ static int vsprintf_chk_impl(char *dst, int flags, size_t dst_size,
   return result;
 }
 
+// Bionic's fortified vsnprintf import carries both the requested output size
+// and the compiler-known destination size. Preserve vsnprintf truncation
+// semantics while rejecting a caller-supplied size larger than the object.
+static int vsnprintf_chk_impl(char *dst, size_t supplied_size, int flags,
+                              size_t dst_size, const char *fmt, va_list ap) {
+  (void)flags;
+  if (supplied_size > dst_size)
+    fatal_error("Android __vsnprintf_chk overflow (requested %u bytes, have %u)",
+                (unsigned)supplied_size, (unsigned)dst_size);
+  return vsnprintf(dst, supplied_size, fmt, ap);
+}
+
 // Bionic's fortified strchr import supplies the compiler-known object bound.
 // Search only inside it, stop at the string terminator, and fail if no
 // terminator is present within that bound.
@@ -996,6 +1008,7 @@ so_default_dynlib default_dynlib[] = {
   { "__strncpy_chk2", (uintptr_t)&strncpy_chk2_impl },
   { "__strcat_chk", (uintptr_t)&strcat_chk_impl },
   { "__vsprintf_chk", (uintptr_t)&vsprintf_chk_impl },
+  { "__vsnprintf_chk", (uintptr_t)&vsnprintf_chk_impl },
   { "strcpy", (uintptr_t)&strcpy }, { "strncpy", (uintptr_t)&strncpy }, { "strcat", (uintptr_t)&strcat }, { "strncat", (uintptr_t)&strncat },
   { "strcmp", (uintptr_t)&strcmp }, { "strncmp", (uintptr_t)&strncmp }, { "strlen", (uintptr_t)&strlen },
   { "strchr", (uintptr_t)&strchr }, { "strrchr", (uintptr_t)&strrchr }, { "strstr", (uintptr_t)&strstr },
